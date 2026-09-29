@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">lichess</string>
+    <string name="title_games">在线对局</string>
+    <string name="title_game">对局</string>
+    <string name="title_profile">主页</string>
+    <string name="title_puzzle">谜题训练</string>
+    <string name="title_ai">离线人机对战</string>
+    <string name="title_local">离线双人对战</string>
+    <string name="title_tv">观战</string>
+    <string name="title_settings">设置</string>
+    <string name="title_diag">网络诊断</string>
+    <string name="title_log">运行日志</string>
+</resources>

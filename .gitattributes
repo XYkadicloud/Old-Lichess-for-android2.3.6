@@ -1,0 +1,23 @@
+# =============================================================================
+# 统一行尾。
+#
+# Windows 批处理必须用 CRLF：cmd 在解析 LF-only 的 .bat 时，遇到
+# for / if / goto 标签 之类的多行结构会出现"吃行"的问题。
+# 其余文本文件统一 LF，免得不同系统的编辑器来回改。
+# =============================================================================
+* text=auto
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.java text eol=lf
+*.sh   text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.pem  text eol=lf
+*.txt  text eol=lf
+*.xml  text eol=lf
+
+# 生成的数据文件，别让 git 去猜
+*.jks  binary
+*.jar  binary
+*.apk  binary

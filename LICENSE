@@ -1,0 +1,46 @@
+MIT License
+
+Copyright (c) 2026 XYKadi (XYkadicloud)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+本项目代码之上的许可如上（MIT）。但它里面包含了三份第三方材料，
+各自的授权不同，使用时需要分开遵守：
+
+1. 棋子造型
+   来源：Cburnett 的国际象棋棋子（Wikipedia / lichess 默认使用的一套）
+   授权：CC BY-SA 3.0
+   位置：app/src/org/lichessold/ui/PieceArt.java（由 scripts/make_pieces.py
+        从 SVG 生成的矢量数据），以及桌面版的
+        desktop/src/org/lichessold/desktop/PieceArt2D.java
+   https://en.wikipedia.org/wiki/File:Chess_Pieces_Sprite.svg
+
+2. 密码学库
+   Spongy Castle sc-core 1.58.0.0（Bouncy Castle 的 Android 兼容版）
+   授权：Bouncy Castle Licence（BSD 风格，与 MIT 兼容）
+   位置：toolchain/libs/sc-core-1.58.0.0.jar（不入库，由 scripts/setup.sh 下载）
+   https://www.bouncycastle.org/licence.html
+
+3. 根证书包
+   Mozilla CA Certificate Bundle（cacert.pem）
+   授权：MPL 2.0
+   位置：app/assets/cacerts.pem 与 desktop/assets/cacerts.pem
+   https://curl.se/docs/caextract.html
