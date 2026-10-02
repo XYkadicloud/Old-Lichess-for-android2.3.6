@@ -60,11 +60,14 @@ public class MainActivity extends Activity {
         // ---- 我的
         root.addView(Theme.sectionLabel(this, "我的"), sideMargin());
         addRow(root, "我的主页与排位分", "各分项等级分 · 战绩 · 在线时长", ProfileActivity.class);
+        addRow(root, "最近战绩", "近几天的胜负与等级分涨跌", ActivityActivity.class);
+        addRow(root, "棋谱", "最近一局 · 可存到存储卡", PgnActivity.class);
 
         // ---- 学习
         root.addView(Theme.sectionLabel(this, "学习与观战"), sideMargin());
         addRow(root, "谜题训练", "每日一题 · 19 种主题", PuzzleActivity.class);
         addRow(root, "观战", "Lichess 焦点对局直播", TvActivity.class);
+        addRow(root, "锦标赛", "正在进行 · 即将开始 · 排行榜", TournamentsActivity.class);
 
         // ---- 系统
         root.addView(Theme.sectionLabel(this, "系统"), sideMargin());

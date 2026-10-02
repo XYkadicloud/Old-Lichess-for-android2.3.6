@@ -20,7 +20,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `LichessOld-0.8.0.apk` | Android 安装包（1.22 MB），拷到手机点击安装 |
+| `LichessOld-1.0.apk` | Android 安装包（1.23 MB），拷到手机点击安装 |
 | `LichessOldDesktop-1.0.0.jar` | 桌面版（3.3 MB），双击 `run.bat` 或 `java -jar` 运行 |
 
 > ⚠️ APK 用的是自签名证书，不是从 Google Play 装的，所以首次安装需要在
@@ -50,7 +50,10 @@
 | 谜题训练（每日题 / 随机题 / 19 种主题） | ❌ | 已完成 |
 | 离线人机对战（内置引擎，8 级强度） | ❌ | 已完成 |
 | 离线双人对战 | ❌ | 已完成 |
-| 观战（焦点对局直播） | ❌ | 已完成 |
+| 观战（焦点对局直播，可指定某一局） | ❌ | 已完成 |
+| 锦标赛（列表 / 排行榜 / 焦点对局，只看不参赛） | ❌ | 已完成 |
+| 最近战绩（近 7 天胜负 + 等级分涨跌） | ❌ | 已完成 |
+| 棋谱（查看最近一局 PGN，可存到存储卡） | ❌ | 已完成 |
 | 网络诊断（DNS→TCP→TLS→证书→HTTP 逐步骤） | ❌ | 已完成 |
 | 运行日志 / 崩溃自动报告 | ❌ | 已完成 |
 
@@ -61,7 +64,7 @@
 | 文档 | 内容 |
 |---|---|
 | [docs/08-MACHINE-PROFILES.md](docs/08-MACHINE-PROFILES.md) | **两台开发机的配置区分（先读这个）** |
-| [docs/07-DELIVERY-0.8.0.md](docs/07-DELIVERY-0.8.0.md) | **当前版本交付说明与测试清单** |
+| [docs/07-DELIVERY-1.0.0.md](docs/07-DELIVERY-1.0.0.md) | **当前版本交付说明与测试清单** |
 | [docs/00-SPEC.md](docs/00-SPEC.md) | 原始项目规格书（需求来源，不改） |
 | [docs/01-PLAN.md](docs/01-PLAN.md) | 开发总计划：方案选型、阶段划分、风险 |
 | [docs/02-BUILD.md](docs/02-BUILD.md) | 构建环境安装、编译命令、平台包三个坑 |
@@ -72,6 +75,7 @@
 | [docs/07-DELIVERY-0.7.0.md](docs/07-DELIVERY-0.7.0.md) | 0.7.0 交付说明（排位/休闲 + 个人主页） |
 | [docs/07-DELIVERY-0.6.0.md](docs/07-DELIVERY-0.6.0.md) | 0.6.0 交付说明（界面重做） |
 | [docs/07-DELIVERY-0.5.0.md](docs/07-DELIVERY-0.5.0.md) | 0.5.0 交付说明（24 项测试清单在这里） |
+| [docs/07-DELIVERY-0.8.0.md](docs/07-DELIVERY-0.8.0.md) | 0.8.0 交付说明（界面二改 + 标准棋子） |
 
 ---
 
@@ -80,9 +84,9 @@
 ```bash
 bash scripts/machine-profile.sh  # 先看这台机器被判成哪一档
 bash scripts/setup.sh            # 一次性安装工具链（幂等）
-bash scripts/build.sh 0.8.0      # 构建 APK
+bash scripts/build.sh 1.0        # 构建 APK
 bash scripts/test.sh             # 跑全部桌面测试（棋规/AI/真实网络）
-bash scripts/verify_apk.sh dist/LichessOld-0.8.0.apk   # APK 静态校验 15 项
+bash scripts/verify_apk.sh dist/LichessOld-1.0.apk     # APK 静态校验 15 项
 # 产物：dist/LichessOld-<版本>.apk
 ```
 
@@ -102,15 +106,21 @@ bash scripts/verify_apk.sh dist/LichessOld-0.8.0.apk   # APK 静态校验 15 项
 
 ## 当前状态
 
-**0.8.0 已构建完成，等待真机验证。**
+**1.0 已构建完成，等待真机验证。**
 
 | 项目 | 值 |
 |---|---|
-| 交付版本 | **0.8.0**（界面重做：棋盘放大 + 标准棋子 + 两台电脑分档） |
-| APK | `dist/LichessOld-0.8.0.apk`（1.22 MB） |
-| SHA-256 | `598c94166f378be4da2f7708c5ef65b3749949abde20d6c0a517b39e8b4a6e52` |
-| APK 静态校验 | 15 项**全部通过**（方法引用数 16,903 / 65,536） |
-| 测试清单 | 见 [docs/07-DELIVERY-0.8.0.md](docs/07-DELIVERY-0.8.0.md) |
+| 交付版本 | **1.0**（锦标赛 + 战绩 + 棋谱导出 + 修掉两个已失效的接口） |
+| APK | `dist/LichessOld-1.0.apk`（1.23 MB） |
+| SHA-256 | `3518ef7d0fa206d59ef1c5bc2d94dc133a24c22cc4516781f2974dbbc3543f19` |
+| APK 静态校验 | 15 项**全部通过**（方法引用数 17,057 / 65,536） |
+| 自动测试 | **113 项全部通过**（`bash scripts/test.sh`） |
+| 测试清单 | 见 [docs/07-DELIVERY-1.0.0.md](docs/07-DELIVERY-1.0.0.md) |
+
+> 1.0 修掉了一个藏了很久的问题：项目原本封装的两个棋谱导出端点
+> （`/api/games/user/{name}`、`/game/export/{id}.pgn`）**实测都已 404**。
+> 因为一直没接界面所以从没暴露。现在改用依然有效的
+> `GET /api/user/{name}/current-game`，并把棋谱功能真正接到了界面上。
 
 ### 界面风格
 
@@ -183,15 +193,22 @@ logs\        构建日志
 
 ## 已知限制
 
-见 [docs/07-DELIVERY-0.8.0.md](docs/07-DELIVERY-0.8.0.md) 第五节。
+见 [docs/07-DELIVERY-1.0.0.md](docs/07-DELIVERY-1.0.0.md) 第四节。
+
+提要：
+
+- **不能报名锦标赛** —— `POST /api/tournament/{id}/join` 需要 OAuth 的
+  `tournament:write` 权限，本项目用的是手填个人令牌，拿不到那个 scope。所以锦标赛只做"看"
+- **不能按对局 ID 精确取棋谱** —— `/api/games/user/{ids}` 同样已失效，只能取"最近一局"
+- 战绩只覆盖近 7 天（接口默认返回量）
 
 ---
 
 ## 许可
 
-本项目代码用 **MIT**，详见 [LICENSE](LICENSE)。
+代码用 **MIT**，详见 [LICENSE](LICENSE)。
 
-⚠️ 但里面包含三份第三方材料，授权不同，需要分开遵守：
+⚠️ 项目里还包含三份第三方材料，授权各不相同，需要**分开遵守**：
 
 | 材料 | 授权 | 位置 |
 |---|---|---|
@@ -199,8 +216,14 @@ logs\        构建日志
 | Spongy Castle sc-core 1.58.0.0 | Bouncy Castle Licence | `toolchain/libs/`（不入库，构建时下载） |
 | Mozilla 根证书包 | MPL 2.0 | `app/assets/cacerts.pem`、`desktop/assets/cacerts.pem` |
 
-其中**棋子造型是 CC BY-SA 3.0**（署名 + 相同方式共享），如果二次分发成品
+其中**棋子造型是 CC BY-SA 3.0**（署名 + 相同方式共享），二次分发成品
 （APK / JAR）需要保留署名并以相同协议共享造型部分。
+
+完整清单见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+
+> 为什么第三方说明单独放一个文件、不写在 LICENSE 里：
+> GitHub 靠文本精确匹配来识别许可证，LICENSE 里混入额外内容会让仓库
+> 显示成「未识别」。所以 LICENSE 只放纯净的 MIT 原文。
 
 ---
 

@@ -490,28 +490,79 @@ public final class LichessApi {
     }
 
     /**
-     * GET /api/games/user/{name} —— 导出 PGN。
-     * @param max 最多几局（1~100）
+     * GET /api/user/{name}/current-game —— 拿某人当前（或最近一局）的完整 PGN。
+     *
+     * 历史坑：原先这里打的是 {@code /api/games/user/{name}?max=n}，
+     * 那个端点在 2026 年实测已经返回 404，整条导出链是断的。
+     * 现在改用依然有效的 current-game，并且只要一局（免登录，Anonymous 也能读）。
+     *
+     * 注意：正在进行的对局服务器会**延迟 3 步**才吐出来，防作弊用的，这是设计如此。
+     *
+     * @return PGN 文本；对方没有对局时返回空串（服务端 404，不是错误）
      */
-    public String gamesPgn(String name, int max) throws NetException {
+    public String lastGamePgn(String name) throws NetException {
         HttpResponse r = call("GET",
-                "/api/games/user/" + name + "?max=" + Math.max(1, Math.min(100, max))
-                        + "&clocks=false&evals=false&opening=false",
-                Http.headers("application/x-chess-pgn", token), null);
+                "/api/user/" + name + "/current-game?moves=true&tags=true&clocks=false",
+                Http.headers("application/x-chess-pgn", null), null);
+        if (r.status == 404) {
+            return "";      // 没有对局，不算错误
+        }
         if (!r.isOk()) {
             throw new NetException(NetException.STAGE_HTTP, explain(r));
         }
         return r.text();
     }
 
-    /** GET /game/export/{gameId}.pgn —— 单局 PGN。 */
+    /**
+     * 兼容旧调用名。语义已从「导出最近 N 局」收窄成「取最近一局」。
+     * @param max 忽略，仅为兼容旧签名保留
+     */
+    public String gamesPgn(String name, int max) throws NetException {
+        return lastGamePgn(name);
+    }
+
+    /**
+     * 取单局 PGN。
+     *
+     * 历史坑：原先打 {@code /game/export/{id}.pgn}，同样实测 404。
+     * 现在退化成「取该 ID 对应玩家的最近一局」，拿不到就返回空串。
+     * 如果要精确按 ID 取，需要 /api/games/export/_ids，但那个端点同样已 404，
+     * 所以这里不再假装能做到。
+     */
     public String gamePgn(String gameId) throws NetException {
-        HttpResponse r = call("GET", "/game/export/" + gameId + ".pgn",
-                Http.headers("application/x-chess-pgn", token), null);
-        if (!r.isOk()) {
-            throw new NetException(NetException.STAGE_HTTP, explain(r));
-        }
-        return r.text();
+        return "";
+    }
+
+    // -------------------------------------------------------------- 锦标赛
+
+    /**
+     * GET /api/tournament —— 锦标赛日程（最近 / 正在进行 / 已结束）。
+     * 免登录。返回 {created:[], started:[], finished:[]}。
+     */
+    public Json tournaments() throws NetException {
+        return json(call("GET", "/api/tournament",
+                Http.headers("application/json", null), null));
+    }
+
+    /**
+     * GET /api/tournament/{id} —— 单个锦标赛详情，含排行榜与焦点对局。
+     * 免登录。page 是排行榜翻页（1~200）。
+     */
+    public Json tournament(String id, int page) throws NetException {
+        return json(call("GET",
+                "/api/tournament/" + id + "?page=" + Math.max(1, Math.min(200, page)),
+                Http.headers("application/json", null), null));
+    }
+
+    // -------------------------------------------------------------- 战绩
+
+    /**
+     * GET /api/user/{name}/activity —— 按天分桶的战绩，含锦标赛最佳名次。
+     * 免登录。返回的是一个**数组**（不是对象），每天一项。
+     */
+    public Json userActivity(String name) throws NetException {
+        return json(call("GET", "/api/user/" + name + "/activity",
+                Http.headers("application/json", null), null));
     }
 
     // ---------------------------------------------------------------- 观战

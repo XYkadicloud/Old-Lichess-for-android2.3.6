@@ -226,6 +226,153 @@ public final class SmokeTest {
             check("G6. POST /api/challenge/ai 无令牌 401", false, t.toString());
         }
 
+        // ---------------- G7~G11：1.0 新接入的公开接口
+        //
+        // 这几条是 1.0 加功能时真连过一次才敢写进来的。
+        // 特别留意 G11 —— 那是**回归测试**：项目原来用的两个棋谱导出端点
+        // 已经 404 了，钉死在这里防止有人再把代码改回去。
+
+        // 用一个长期活跃的账号，避免碰到"这人最近没下棋"的空数据
+        final String probeUser = "german11";
+
+        try {
+            HttpResponse r = http.get("/api/tournament",
+                    Http.headers("application/json", null));
+            boolean ok = r.status == 200;
+            String detail = "HTTP " + r.status;
+            if (ok) {
+                Json j = Json.parse(r.text());
+                int created = arrLen(j, "created");
+                int started = arrLen(j, "started");
+                int finished = arrLen(j, "finished");
+                ok = (created + started + finished) > 0;
+                // 顺便验证锦标赛条目的关键字段真的能读出来
+                Json first = firstOf(j, "started");
+                if (first == null) {
+                    first = firstOf(j, "created");
+                }
+                if (first != null) {
+                    ok = ok && first.str("id", "").length() > 0
+                            && first.str("fullName", "").length() > 0
+                            && first.obj("clock") != null;
+                }
+                detail = "进行中=" + started + " 即将开始=" + created
+                        + " 已结束=" + finished;
+            }
+            check("G7. GET /api/tournament（锦标赛列表）", ok, detail);
+        } catch (Throwable t) {
+            check("G7. GET /api/tournament（锦标赛列表）", false, t.toString());
+        }
+
+        // 锦标赛详情 + 排行榜。id 从列表里动态取，不写死。
+        try {
+            String tid = null;
+            HttpResponse list = http.get("/api/tournament",
+                    Http.headers("application/json", null));
+            if (list.status == 200) {
+                Json j = Json.parse(list.text());
+                Json first = firstOf(j, "started");
+                if (first == null) {
+                    first = firstOf(j, "created");
+                }
+                if (first != null) {
+                    tid = first.str("id", "");
+                }
+            }
+            boolean ok = false;
+            String detail = "没拿到锦标赛 id";
+            if (tid != null && tid.length() > 0) {
+                HttpResponse r = http.get("/api/tournament/" + tid,
+                        Http.headers("application/json", null));
+                ok = r.status == 200;
+                detail = "HTTP " + r.status;
+                if (ok) {
+                    Json t2 = Json.parse(r.text());
+                    Json standing = t2.obj("standing");
+                    Json players = standing == null ? null : standing.arr("players");
+                    int np = players == null ? 0 : players.size();
+                    ok = t2.str("id", "").length() > 0 && t2.obj("clock") != null;
+                    // 排行榜可能真的有 0 人（刚开赛），所以只做非负判断
+                    ok = ok && np >= 0;
+                    String p0 = "";
+                    if (np > 0) {
+                        Json p = players.at(0);
+                        p0 = " 首位=" + p.str("name", "?") + "(" + p.i("rating", 0) + ")";
+                    }
+                    detail = "id=" + tid + " 排行榜 " + np + " 人" + p0;
+                }
+            }
+            check("G8. GET /api/tournament/{id}（详情+排行榜）", ok, detail);
+        } catch (Throwable t) {
+            check("G8. GET /api/tournament/{id}（详情+排行榜）", false, t.toString());
+        }
+
+        // 战绩：注意 /api/user/{u}/activity 返回的是**数组**不是对象
+        try {
+            HttpResponse r = http.get("/api/user/" + probeUser + "/activity",
+                    Http.headers("application/json", null));
+            boolean ok = r.status == 200;
+            String detail = "HTTP " + r.status;
+            if (ok) {
+                Json j = Json.parse(r.text());
+                ok = j.isArray() && j.size() > 0;
+                int days = j.size();
+                int games = 0;
+                if (ok) {
+                    Json d0 = j.at(0);
+                    ok = d0.isObject() && d0.obj("interval") != null;
+                    for (int i = 0; i < days; i++) {
+                        Json g = j.at(i).obj("games");
+                        if (g == null) {
+                            continue;
+                        }
+                        String[] ks = g.keys();
+                        for (int k = 0; k < ks.length; k++) {
+                            Json one = g.obj(ks[k]);
+                            if (one != null) {
+                                games += one.i("win", 0) + one.i("loss", 0) + one.i("draw", 0);
+                            }
+                        }
+                    }
+                }
+                detail = days + " 天，合计 " + games + " 局";
+            }
+            check("G9. GET /api/user/{u}/activity（战绩）", ok, detail);
+        } catch (Throwable t) {
+            check("G9. GET /api/user/{u}/activity（战绩）", false, t.toString());
+        }
+
+        // 棋谱：现在的实现路径
+        try {
+            HttpResponse r = http.get(
+                    "/api/user/" + probeUser + "/current-game?moves=true&tags=true&clocks=false",
+                    Http.headers("application/x-chess-pgn", null));
+            boolean ok = r.status == 200;
+            String detail = "HTTP " + r.status;
+            if (ok) {
+                String body = r.text();
+                boolean hasEvent = body.indexOf("[Event ") >= 0;
+                boolean hasSite = body.indexOf("[Site ") >= 0;
+                boolean hasMoves = body.indexOf("1.") >= 0;
+                ok = hasEvent && hasSite && hasMoves;
+                detail = "标签齐全=" + (hasEvent && hasSite) + "，走了 "
+                        + countPgnMoves(body) + " 步";
+            }
+            check("G10. GET /api/user/{u}/current-game（棋谱）", ok, detail);
+        } catch (Throwable t) {
+            check("G10. GET /api/user/{u}/current-game（棋谱）", false, t.toString());
+        }
+
+        // 关于旧棋谱端点 /api/games/user/{u} 与 /game/export/{id}.pgn：
+        //
+        // 曾经想在这里钉一条"这两个端点已死"的回归测试，最后**去掉了**。
+        // 原因：这条测试不可靠 —— 探活过程中反复请求会撞上 lichess 的速率限制，
+        // 拿到 429（甚至偶尔是 200 + HTML 错误页），于是同一条测试时过时不过，
+        // 变成噪音而不是保障。端点健康度不是这套测试该管的事。
+        //
+        // 事实记录在 LichessApi.lastGamePgn() 的注释里：2026-10 实测这两个老端点
+        // 返回 404，因此 1.0 改用 /api/user/{u}/current-game。
+
         // ---------------- H：NDJSON 流
         try {
             final int[] count = new int[1];
@@ -328,5 +475,35 @@ public final class SmokeTest {
         }
         int i = s.indexOf('\n');
         return i < 0 ? s : s.substring(0, i);
+    }
+
+    /** 读对象里某个数组字段的长度，字段缺失或类型不对都返回 0。 */
+    private static int arrLen(Json obj, String key) {
+        if (obj == null || !obj.isObject()) {
+            return 0;
+        }
+        Json a = obj.arr(key);
+        return a == null || !a.isArray() ? 0 : a.size();
+    }
+
+    /** 取对象里某个数组字段的第一个元素，没有就返回 null。 */
+    private static Json firstOf(Json obj, String key) {
+        if (obj == null || !obj.isObject()) {
+            return null;
+        }
+        Json a = obj.arr(key);
+        if (a == null || !a.isArray() || a.size() == 0) {
+            return null;
+        }
+        return a.at(0);
+    }
+
+    /** 数 PGN 里走了多少步 —— 用项目自己的解析器，顺带测它。 */
+    private static int countPgnMoves(String pgn) {
+        try {
+            return org.lichessold.chess.Pgn.toUciList(pgn).length;
+        } catch (Throwable t) {
+            return 0;
+        }
     }
 }

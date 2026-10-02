@@ -8,6 +8,10 @@
     <string name="title_ai">离线人机对战</string>
     <string name="title_local">离线双人对战</string>
     <string name="title_tv">观战</string>
+    <string name="title_tournaments">锦标赛</string>
+    <string name="title_tournament">锦标赛详情</string>
+    <string name="title_activity">最近战绩</string>
+    <string name="title_pgn">棋谱</string>
     <string name="title_settings">设置</string>
     <string name="title_diag">网络诊断</string>
     <string name="title_log">运行日志</string>

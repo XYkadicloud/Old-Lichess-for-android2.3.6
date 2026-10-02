@@ -35,6 +35,9 @@ desktop/build/*/
 dist/*.apk
 desktop/dist/*.jar
 
+# 桌面版的构建信息文本（构建脚本每次重新生成，属于产物）
+desktop/dist/*.deps.txt
+
 # 桌面版运行期数据（设置 / 日志 / 诊断结果）
 desktop/dist/data/
 

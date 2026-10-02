@@ -21,8 +21,16 @@ import org.lichessold.util.Log;
  *
  * 这个接口是公开的，不需要令牌，所以没登录也能用。
  * 只读：不能走子，只跟着服务端推的 fen 更新棋盘。
+ *
+ * 两种进入方式：
+ *   1. 不传 extra        → 跟着首页焦点流走，焦点换局就跟着换（原来的行为）
+ *   2. 传 EXTRA_GAME_ID  → 只看指定这一局（从锦标赛的焦点对局点进来）
+ *      这时焦点流里出现别的对局会被忽略，不会把棋盘抢走。
  */
 public class TvActivity extends BoardGameActivity {
+
+    /** 指定只看某一局时传这个 extra。 */
+    public static final String EXTRA_GAME_ID = "gameId";
 
     private LichessApi api;
     private final LichessApi.Flag cancelFlag = new LichessApi.Flag();
@@ -30,6 +38,8 @@ public class TvActivity extends BoardGameActivity {
     private String white = "?";
     private String black = "?";
     private String gameId = "";
+    /** 非空表示「只看这一局」。 */
+    private String wantGameId = "";
     private boolean connected;
     private int updates;
 
@@ -42,6 +52,10 @@ public class TvActivity extends BoardGameActivity {
             Ui.toast(this, e.getMessage());
             finish();
             return;
+        }
+        String want = getIntent() == null ? null : getIntent().getStringExtra(EXTRA_GAME_ID);
+        if (want != null) {
+            wantGameId = want;
         }
         boardView.setInteractive(false);
         startFeed();
@@ -151,6 +165,12 @@ public class TvActivity extends BoardGameActivity {
         if ("featured".equals(t)) {
             final String fen = d.str("fen", "");
             final String id = d.str("gameId", "");
+
+            // 指定了某一局就只认这一局，别的对局来了也不能抢走棋盘
+            if (wantGameId.length() > 0 && !wantGameId.equals(id)) {
+                return;
+            }
+
             final Json players = d.arr("players");
             String w = "?";
             String b = "?";
@@ -194,7 +214,6 @@ public class TvActivity extends BoardGameActivity {
             });
         }
     }
-
     private void applyFen(String fen, String lastMoveUci) {
         if (fen == null || fen.length() == 0) {
             return;
