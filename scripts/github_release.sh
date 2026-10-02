@@ -117,23 +117,24 @@ fi
 
 # ---------------------------------------------------------------------------
 # 3. 组装 Release 说明
+#
+# 这里曾经踩过一个坑：模板用了**不带引号**的 heredoc（<<EOF），
+# 于是正文里的反引号被 shell 当成命令替换执行掉了 ——
+# 结果 "可存到存储卡 `LichessOld/games/`" 里的路径、"tournament:write"
+# 这些词全被吃光，release 页面显示出来的说明是残缺的，而且脚本还报
+# 一堆 "No such file or directory"，但退出码依然是 0，非常隐蔽。
+#
+# 现在改成：模板用带引号的 heredoc 原样落盘，动态值用 @XXX@ 占位，
+# 最后用 Python 做替换。shell 从此不碰正文里的任何字符。
 # ---------------------------------------------------------------------------
-NOTES_FILE="$(mktemp)"
-cat > "$NOTES_FILE" <<'EOF'
+TEMPLATE_FILE="$(mktemp)"
+cat > "$TEMPLATE_FILE" <<'TPLEOF'
 ## 下载
 
 | 文件 | 说明 | 校验 |
 |---|---|---|
-EOF
-APKSIZE=$(stat -c%s "$APK")
-JARSIZE=$(stat -c%s "$JAR")
-APKKB=$((APKSIZE / 1024))
-JARKB=$((JARSIZE / 1024))
-APKSHA=$(sha256sum "$APK" | cut -d' ' -f1)
-JARSHA=$(sha256sum "$JAR" | cut -d' ' -f1)
-cat >> "$NOTES_FILE" <<EOF
-| \`$(basename "$APK")\` | Android 安装包，$APKKB KB，拷到手机点击安装 | \`${APKSHA:0:16}…\` |
-| \`LichessOldDesktop-1.0.0.jar\` | 桌面版，$JARKB KB，双击 \`run.bat\` 或 \`java -jar\` 运行 | \`${JARSHA:0:16}…\` |
+| @APKNAME@ | Android 安装包，@APKKB@ KB，拷到手机点击安装 | `@APKSHA16@…` |
+| @JARNAME@ | 桌面版，@JARKB@ KB，双击 `run.bat` 或 `java -jar` 运行 | `@JARSHA16@…` |
 
 > ⚠️ APK 是自签名证书，不是从应用商店装的，首次安装需要在系统设置里允许「未知来源」。
 
@@ -156,7 +157,7 @@ cat >> "$NOTES_FILE" <<EOF
 - **锦标赛**：列表（正在进行 / 即将开始 / 刚结束）、排行榜、焦点对局一键观战
 - **最近战绩**：近 7 天每天胜负与等级分涨跌
 - **棋谱**：查看最近一局的完整 PGN，可存到存储卡 `LichessOld/games/`
-- **修掉两个已经失效的棋谱接口**：项目原先用的 `/api/games/user/{name}`
+- **修掉两个已经失效的棋谱接口**：原先用的 `/api/games/user/{name}`
   与 `/game/export/{id}.pgn` 实测都已 404，改用依然有效的
   `GET /api/user/{name}/current-game`
 - 观战页支持指定对局（从锦标赛焦点对局进来不会被别的棋局抢走）
@@ -167,7 +168,7 @@ cat >> "$NOTES_FILE" <<EOF
 ## 桌面版 1.0.0
 
 同一个棋规内核 + 同一套 TLS 栈，配上 Swing 界面，编译成**单文件可执行 JAR**，
-Windows 上双击 \`run.bat\` 即运行。桌面构建时直接引用 \`app/src\` 下的源码，
+Windows 上双击 `run.bat` 即运行。桌面构建时直接引用 `app/src` 下的源码，
 不复制不修改 —— 所以两个版本跑的是同一个引擎。
 
 比手机版多出：走子记录栏、状态栏提示、更强的引擎（桌面 CPU 快两个数量级）。
@@ -176,10 +177,10 @@ Windows 上双击 \`run.bat\` 即运行。桌面构建时直接引用 \`app/src\
 
 ## 完整校验值
 
-\`\`\`
-$(basename "$APK")             SHA-256: $APKSHA
-LichessOldDesktop-1.0.0.jar    SHA-256: $JARSHA
-\`\`\`
+```
+@APKNAME@             SHA-256: @APKSHA@
+@JARNAME@    SHA-256: @JARSHA@
+```
 
 ## 说明文档
 
@@ -194,9 +195,58 @@ LichessOldDesktop-1.0.0.jar    SHA-256: $JARSHA
 代码 **MIT**。项目里另含三份第三方材料（棋子造型 CC BY-SA 3.0、
 Spongy Castle、Mozilla 根证书包），授权各不相同，
 详见 [THIRD-PARTY-NOTICES.md](../../blob/main/THIRD-PARTY-NOTICES.md)。
-EOF
+TPLEOF
 
-# ---------------------------------------------------------------------------
+NOTES_FILE="$(mktemp)"
+python - "$TEMPLATE_FILE" "$NOTES_FILE" "$APK" "$JAR" <<'PYEND'
+import sys, os, hashlib
+
+tpl_path, out_path, apk, jar = sys.argv[1:5]
+
+def sha256(p):
+    h = hashlib.sha256()
+    with open(p, 'rb') as f:
+        for chunk in iter(lambda: f.read(65536), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+def kb(p):
+    return os.path.getsize(p) // 1024
+
+apksha = sha256(apk)
+jarsha = sha256(jar)
+
+with open(tpl_path, encoding='utf-8') as f:
+    tpl = f.read()
+
+rep = {
+    '@APKNAME@':  os.path.basename(apk),
+    '@JARNAME@':  os.path.basename(jar),
+    '@APKKB@':    str(kb(apk)),
+    '@JARKB@':    str(kb(jar)),
+    '@APKSHA16@': apksha[:16],
+    '@JARSHA16@': jarsha[:16],
+    '@APKSHA@':   apksha,
+    '@JARSHA@':   jarsha,
+}
+for k, v in rep.items():
+    tpl = tpl.replace(k, v)
+
+leftover = [k for k in rep if k in tpl]
+if leftover:
+    sys.stderr.write('!! 占位符没替换干净: %s\n' % ', '.join(leftover))
+    sys.exit(1)
+
+with open(out_path, 'w', encoding='utf-8', newline='\n') as f:
+    f.write(tpl)
+PYEND
+if [ $? -ne 0 ]; then
+    echo "!! 生成 Release 说明失败" >&2
+    rm -f "$TEMPLATE_FILE" "$NOTES_FILE"
+    exit 1
+fi
+rm -f "$TEMPLATE_FILE"
+
 # 4. 创建 Release
 # ---------------------------------------------------------------------------
 echo ""
@@ -207,14 +257,24 @@ d=json.load(sys.stdin)
 print(d.get('id',''))" 2>/dev/null)
 
 if [ -n "${EXISTING:-}" ]; then
-    echo "-- Release $TAG 已存在（id=$EXISTING），复用它"
+    echo "-- Release $TAG 已存在（id=$EXISTING），复用它并刷新正文"
     REL_ID="$EXISTING"
+    # 复用时也要把正文更新一遍。否则重跑脚本只换了附件，说明还是旧的，
+    # 页面上的文字和实际产物对不上。
+    UPD=$(python -c "
+import json,sys
+notes=open(sys.argv[1],encoding='utf-8').read()
+print(json.dumps({'body':notes},ensure_ascii=False))
+" "$NOTES_FILE")
+    curl -s -X PATCH "${AUTH[@]}" "$API/releases/$REL_ID" -d "$UPD" >/dev/null
 else
     PAYLOAD=$(python -c "
 import json,sys
 notes=open(sys.argv[1],encoding='utf-8').read()
 print(json.dumps({'tag_name':'$TAG','name':'$TITLE','body':notes,'draft':False,'prerelease':False},ensure_ascii=False))
 " "$NOTES_FILE")
+    # 上面这个 python 只是把正文转成 JSON 字符串，不涉及 shell 解释，
+    # 所以正文里的反引号是安全的。
     REL_JSON=$(curl -s -X POST "${AUTH[@]}" "$API/releases" -d "$PAYLOAD")
     REL_ID=$(echo "$REL_JSON" | python -c "
 import sys,json
